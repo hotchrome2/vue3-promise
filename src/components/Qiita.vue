@@ -1,51 +1,80 @@
 <script>
 import axios from 'axios';
 import { debounce } from "lodash";
+import { resolveDirective } from 'vue';
 
 export default {
-  // data() {
-  //   return {
-  //     count: 0
-  //   }
-  // },
   data: () => ({
     items: null,
+    hits: null,
     keyword: '',
     message: ''
   }),
   watch: {
-    keyword: function(newKeyword, oldKeyword){
+    keyword: function (newKeyword, oldKeyword) {
       console.log(newKeyword)
       this.message = 'Waiting for you to stop typing...'
-      this.debouncedGetAnswer()
+      this.debouncedGet()
     }
 
   },
   mounted: function() {
-    // this.keyword = 'JavaScript'
-    // this.getAnswer()
-    this.debouncedGetAnswer = debounce(this.getAnswer, 1000)
+    this.debouncedGet = debounce(this.getLinks, 1000)
 
   },
   methods: {
-    getAnswer: function() {
-      if(this.keyword === ''){
+    async getLinks() {
+      await this.getAnswer()
+      this.getWait()
+    },
+    getWait: () => {
+      console.log('--wait a minitues.')
+    },
+    getAnswer(){
+      return new Promise(resolve => {
+        if (this.keyword === '') {
+          console.log('karamoji')
+          this.items = null
+          return
+        }
+        this.message = 'Laoding...'
+        const vm = this
+        const params = { page: 1, per_page: 10, query: this.keyword }
+        axios.get('https://qiita.com/api/v2/items', { params })
+          .then(function (response) {
+            // console.log(response)
+            console.log('--We got items')
+            vm.items = response.data
+            resolve('resolved')
+          })
+          .catch(function (error) {
+            vm.message = 'Error!' + error
+            resolve('rejected')
+          })
+          .finally(function () {
+            vm.message = ''
+          })
+
+      })
+    },
+    getHit: function () {
+      if (this.keyword === '') {
         console.log('karamoji')
-        this.items = null
+        this.hits = null
         return
       }
-      this.message = 'Laoding...'
+      this.message = 'Hit...'
       const vm = this
-      const params = { page: 1, per_page: 20, query: this.keyword }
+      const params = { page: 1, per_page: 10, query: this.keyword + ' FastAPI' }
       axios.get('https://qiita.com/api/v2/items', { params })
-        .then(function(response){
-          // console.log(response)
-          vm.items = response.data
+        .then(function (response) {
+          console.log('--Got Hits')
+          vm.hits = response.data
         })
-        .catch(function(error){
+        .catch(function (error) {
           vm.message = 'Error!' + error
         })
-        .finally(function(){
+        .finally(function () {
           vm.message = ''
         })
     }
@@ -67,6 +96,14 @@ export default {
           {{ item.title }}
         </a>
         likes: {{ item.likes_count }}
+      </li>
+    </ul>
+    <ul>
+      <li v-for="hit in hits">
+        hit: <a v-bind:href="hit.url" target="_blank">
+          {{ hit.title }}
+        </a>
+        likes count: {{ hit.likes_count }}
       </li>
     </ul>
   </div>
